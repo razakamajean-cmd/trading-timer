@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trader Candle Timer</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background: #121212; color: #ffffff; text-align: center; padding: 20px; }
+        .container { max-width: 400px; margin: auto; background: #1e1e1e; padding: 20px; border-radius: 15px; border: 1px solid #333; }
+        h1 { color: #00ff88; font-size: 1.5rem; }
+        .timer-display { font-size: 3rem; font-weight: bold; margin: 20px 0; color: #ff9800; }
+        .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        button { padding: 15px; border: none; border-radius: 8px; background: #333; color: white; cursor: pointer; font-weight: bold; }
+        button:hover { background: #444; }
+        button.active { background: #00ff88; color: #000; }
+        textarea { width: 90%; padding: 10px; border-radius: 8px; background: #222; color: white; border: 1px solid #444; margin-bottom: 15px; }
+        .status { font-size: 0.9rem; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Smart Candle Timer</h1>
+    
+    <div class="status" id="current-time">Heure : --:--:--</div>
+    
+    <div class="timer-display" id="timer">00:00:00</div>
+
+    <div class="buttons">
+        <button onclick="setTimer(5)">M5</button>
+        <button onclick="setTimer(15)">M15</button>
+        <button onclick="setTimer(30)">M30</button>
+        <button onclick="setTimer(60)">H1</button>
+        <button onclick="setTimer(240)">H4</button>
+        <button onclick="resetTimer()" style="background: #f44336;">STOP</button>
+    </div>
+
+    <textarea id="note" placeholder="Note ton plan (ex: Attendre rejet zone...)"></textarea>
+    
+    <div id="alarm-info" style="color: #00ff88; font-weight: bold;"></div>
+</div>
+
+<script>
+    let countdown;
+    let targetTime;
+
+    // Mise à jour de l'horloge actuelle
+    setInterval(() => {
+        const now = new Date();
+        document.getElementById('current-time').innerText = "Heure : " + now.toLocaleTimeString();
+    }, 1000);
+
+    function setTimer(minutes) {
+        clearInterval(countdown);
+        const now = new Date();
+        const msInPeriod = minutes * 60 * 1000;
+        
+        // Calcul du prochain intervalle de clôture
+        targetTime = new Date(Math.ceil(now.getTime() / msInPeriod) * msInPeriod);
+        
+        document.getElementById('alarm-info').innerText = "Cible : Clôture " + targetTime.toLocaleTimeString();
+        
+        startCountdown();
+    }
+
+    function startCountdown() {
+        countdown = setInterval(() => {
+            const now = new Date().getTime();
+            const distance = targetTime - now;
+
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            document.getElementById("timer").innerHTML = 
+                (hours < 10 ? "0" + hours : hours) + ":" + 
+                (minutes < 10 ? "0" + minutes : minutes) + ":" + 
+                (seconds < 10 ? "0" + seconds : seconds);
+
+            // Alerte 2 minutes avant
+            if (minutes === 2 && seconds === 0) {
+                playAlert(0.5); // Son léger
+            }
+
+            // Alerte Clôture
+            if (distance < 0) {
+                clearInterval(countdown);
+                document.getElementById("timer").innerHTML = "CLÔTURE !";
+                playAlert(1); // Son fort
+                alert("CLÔTURE BOUGIE ! \nNote : " + document.getElementById('note').value);
+            }
+        }, 1000);
+    }
+
+    function resetTimer() {
+        clearInterval(countdown);
+        document.getElementById("timer").innerHTML = "00:00:00";
+        document.getElementById('alarm-info').innerText = "";
+    }
+
+    function playAlert(volume) {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // Note LA
+        gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 1); // Durée 1 seconde
+    }
+</script>
+
+</body>
+</html>
